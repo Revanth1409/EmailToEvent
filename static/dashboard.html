@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EventLink</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#f0ede8; --surface:#faf9f7; --card:#ffffff; --border:#e2ddd7; --border2:#ccc8c0;
+    --text1:#1a1815; --text2:#5a5650; --text3:#9a948c;
+    --accent:#2a6ef5; --accent-bg:#eef2ff;
+    --green:#16a34a; --green-bg:#dcfce7;
+    --red:#dc2626; --red-bg:#fee2e2;
+    --amber:#d97706; --amber-bg:#fef3c7;
+    --radius:10px; --radius-sm:6px;
+    --sidebar-w:268px; --detail-w:284px;
+  }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text1); height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+  /* ── TOPBAR ── */
+  .topbar { height:44px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 16px; gap:12px; flex-shrink:0; }
+  .logo { display:flex; align-items:center; gap:7px; font-size:14px; font-weight:600; letter-spacing:-0.3px; }
+  .logo-icon { width:24px; height:24px; background:var(--accent); border-radius:6px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; font-weight:700; }
+  .topbar input { flex:1; max-width:300px; margin-left:8px; height:28px; background:var(--bg); border:1px solid var(--border); border-radius:20px; padding:0 12px; font-size:12px; font-family:inherit; color:var(--text1); outline:none; }
+  .topbar input::placeholder { color:var(--text3); }
+  .status-bar { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .status-dot { width:7px; height:7px; border-radius:50%; background:#ccc; }
+  .status-dot.ok { background:var(--green); }
+  .status-dot.err { background:var(--red); }
+  .status-label { font-size:11px; color:var(--text3); }
+  .topbar-avatar { width:28px; height:28px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; font-weight:600; }
+
+  /* ── LAYOUT ── */
+  .layout { flex:1; display:grid; grid-template-columns:var(--sidebar-w) 1fr var(--detail-w); overflow:hidden; }
+  .col { overflow-y:auto; border-right:1px solid var(--border); }
+  .col:last-child { border-right:none; }
+  .col-header { position:sticky; top:0; background:var(--surface); border-bottom:1px solid var(--border); padding:12px 14px 10px; z-index:2; display:flex; align-items:center; justify-content:space-between; }
+  .col-title { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px; color:var(--text3); }
+
+  /* ── INBOX ── */
+  .inbox { background:var(--surface); }
+  .inbox-actions { display:flex; gap:6px; align-items:center; }
+  .inbox-count { background:var(--accent); color:#fff; font-size:10px; font-weight:600; border-radius:20px; padding:1px 7px; }
+  .fetch-btn { font-size:11px; font-weight:500; padding:3px 10px; border-radius:20px; border:1px solid var(--accent); background:none; color:var(--accent); cursor:pointer; font-family:inherit; transition:all .15s; }
+  .fetch-btn:hover { background:var(--accent); color:#fff; }
+  .fetch-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+  .email-item { padding:11px 14px; border-bottom:1px solid var(--border); cursor:pointer; transition:background .15s; }
+  .email-item:hover { background:var(--bg); }
+  .email-item.active { background:var(--accent-bg); }
+  .email-meta { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .email-avatar { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:600; flex-shrink:0; }
+  .email-sender { font-size:12px; font-weight:600; }
+  .email-time { font-size:10px; color:var(--text3); margin-left:auto; white-space:nowrap; }
+  .email-subject { font-size:12px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:6px; }
+  .email-tag { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:500; padding:2px 8px; border-radius:20px; }
+  .tag-events   { background:var(--accent-bg); color:var(--accent); }
+  .tag-processed{ background:var(--green-bg);  color:var(--green); }
+  .tag-none     { background:var(--bg); color:var(--text3); border:1px solid var(--border); }
+  .tag-pending  { background:var(--amber-bg); color:var(--amber); }
+  .view-btn { display:block; margin-top:7px; font-size:11px; font-weight:500; color:var(--accent); background:none; border:1px solid var(--accent); border-radius:var(--radius-sm); padding:3px 10px; cursor:pointer; width:fit-content; transition:all .15s; font-family:inherit; }
+  .view-btn:hover { background:var(--accent); color:#fff; }
+
+  /* ── OVERVIEW ── */
+  .overview { background:var(--bg); }
+  .filter-group { display:flex; gap:5px; }
+  .filter-btn { font-size:11px; font-weight:500; padding:3px 10px; border-radius:20px; border:1px solid var(--border2); background:var(--card); color:var(--text2); cursor:pointer; font-family:inherit; transition:all .15s; }
+  .filter-btn.active,.filter-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .events-list { padding:12px; display:flex; flex-direction:column; gap:10px; }
+  .empty-state { padding:40px 20px; text-align:center; color:var(--text3); font-size:12px; line-height:1.8; }
+  .empty-icon { font-size:28px; display:block; margin-bottom:8px; }
+
+  .event-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:13px 14px; cursor:pointer; transition:box-shadow .15s,border-color .15s; }
+  .event-card:hover { box-shadow:0 2px 12px rgba(0,0,0,.08); border-color:var(--border2); }
+  .event-card.selected { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-bg); }
+  .event-card-header { display:flex; align-items:flex-start; gap:8px; margin-bottom:8px; }
+  .event-icon { font-size:16px; margin-top:1px; }
+  .event-name { font-size:13px; font-weight:600; flex:1; }
+  .badge-new { font-size:9px; font-weight:600; padding:2px 6px; background:var(--amber-bg); color:var(--amber); border-radius:20px; white-space:nowrap; }
+  .badge-attend  { background:var(--green-bg);  color:var(--green); }
+  .badge-dismiss { background:var(--red-bg);    color:var(--red); }
+  .event-meta { display:flex; flex-direction:column; gap:3px; margin-bottom:10px; }
+  .event-meta-row { display:flex; gap:6px; font-size:11px; color:var(--text2); }
+  .meta-label { color:var(--text3); width:42px; flex-shrink:0; }
+  .event-actions { display:flex; gap:7px; }
+
+  .btn { flex:1; font-size:11px; font-weight:600; padding:6px 0; border-radius:var(--radius-sm); border:none; cursor:pointer; font-family:inherit; transition:opacity .15s,transform .1s; display:flex; align-items:center; justify-content:center; gap:5px; }
+  .btn:active { transform:scale(.97); }
+  .btn-edit    { background:var(--bg); color:var(--text2); border:1px solid var(--border2); flex:0 0 auto; padding:6px 12px; }
+  .btn-attend  { background:var(--green-bg); color:var(--green); }
+  .btn-attend.on  { background:var(--green); color:#fff; }
+  .btn-dismiss { background:var(--red-bg); color:var(--red); }
+  .btn-dismiss.on { background:var(--red); color:#fff; }
+
+  /* ── DETAIL ── */
+  .detail { background:var(--surface); }
+  .detail-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:200px; color:var(--text3); font-size:12px; gap:8px; }
+  #detail-panel { padding:12px; }
+  .detail-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .detail-head { padding:12px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+  .detail-head-name { font-size:12px; font-weight:600; letter-spacing:0.3px; }
+  .detail-fields { padding:12px 14px; display:flex; flex-direction:column; gap:9px; }
+  .detail-field label { display:block; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--text3); margin-bottom:2px; }
+  .detail-field span { font-size:12px; color:var(--text1); }
+  .detail-actions { padding:10px 14px 14px; display:flex; flex-direction:column; gap:7px; }
+  .detail-row { display:flex; gap:7px; }
+  .btn-cal { width:100%; background:var(--accent); color:#fff; font-size:12px; font-weight:600; padding:8px; border:none; border-radius:var(--radius-sm); cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:6px; transition:opacity .15s; }
+  .btn-cal:hover { opacity:.88; }
+  .btn-cal:disabled { opacity:.5; cursor:not-allowed; }
+
+  /* ── MODAL ── */
+  .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:100; align-items:center; justify-content:center; }
+  .overlay.open { display:flex; }
+  .modal { background:var(--card); border-radius:12px; width:520px; max-width:90vw; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,.18); overflow:hidden; animation:mIn .18s ease; }
+  @keyframes mIn { from{opacity:0;transform:scale(.96) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  .modal-header { display:flex; align-items:center; padding:14px 16px; border-bottom:1px solid var(--border); gap:10px; }
+  .modal-title { font-size:13px; font-weight:600; flex:1; }
+  .modal-close { width:24px; height:24px; background:var(--bg); border:none; border-radius:50%; cursor:pointer; font-size:14px; color:var(--text2); display:flex; align-items:center; justify-content:center; transition:background .15s; }
+  .modal-close:hover { background:var(--border); }
+  .modal-meta { padding:10px 16px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:4px; }
+  .modal-meta-row { font-size:11px; color:var(--text2); }
+  .modal-meta-row b { color:var(--text1); }
+  .modal-body { padding:16px; overflow-y:auto; font-size:13px; line-height:1.7; color:var(--text1); white-space:pre-wrap; flex:1; }
+
+  /* ── AVATAR COLORS ── */
+  .av-a { background:#dbeafe; color:#1e40af; }
+  .av-b { background:#dcfce7; color:#15803d; }
+  .av-c { background:#fef3c7; color:#92400e; }
+  .av-d { background:#fce7f3; color:#9d174d; }
+  .av-e { background:#f3e8ff; color:#6b21a8; }
+
+  /* ── SCROLLBAR / TOAST ── */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--text1); color:#fff; font-size:12px; font-weight:500; padding:8px 18px; border-radius:20px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:200; }
+  .toast.show { opacity:1; }
+
+  /* ── CATEGORY BADGES ── */
+  .cat-badge {
+    font-size:9px; font-weight:600; padding:2px 7px;
+    border-radius:20px; text-transform:uppercase; letter-spacing:0.4px;
+    display:inline-block; margin-right:4px;
+  }
+  .cat-academics   { background:#dbeafe; color:#1e40af; }
+  .cat-clubs       { background:#fce7f3; color:#9d174d; }
+  .cat-placements  { background:#dcfce7; color:#15803d; }
+  .cat-wellness    { background:#f0fdf4; color:#166534; }
+  .cat-finance     { background:#fef3c7; color:#92400e; }
+  .cat-meetings    { background:#f3e8ff; color:#6b21a8; }
+  .cat-general     { background:#f1f5f9; color:#475569; }
+
+  /* ── PRIORITY INDICATOR ── */
+  .priority-bar {
+    height:3px; border-radius:2px; margin-bottom:10px;
+  }
+  .pri-urgent   { background:var(--red); }
+  .pri-important{ background:var(--amber); }
+  .pri-optional { background:var(--green); }
+  .pri-normal   { background:var(--border2); }
+
+  /* ── PRIORITY LABEL (detail panel) ── */
+  .pri-label {
+    font-size:10px; font-weight:600; padding:2px 8px;
+    border-radius:20px; display:inline-block;
+  }
+  .pri-label.urgent    { background:var(--red-bg);   color:var(--red);   }
+  .pri-label.important { background:var(--amber-bg); color:var(--amber); }
+  .pri-label.optional  { background:var(--green-bg); color:var(--green); }
+  .pri-label.normal    { background:var(--bg);       color:var(--text3); border:1px solid var(--border); }
+
+  /* ── SPINNER ── */
+  .spinner { width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* ── NOTIFICATION BELL ── */
+  .bell-wrap { position:relative; cursor:pointer; display:flex; align-items:center; }
+  .bell-btn  { background:none; border:none; font-size:17px; cursor:pointer; padding:3px 5px; border-radius:6px; transition:background .15s; line-height:1; }
+  .bell-btn:hover { background:var(--bg); }
+  .bell-badge { position:absolute; top:-2px; right:-2px; background:var(--red); color:#fff; font-size:9px; font-weight:700; border-radius:50%; width:15px; height:15px; display:flex; align-items:center; justify-content:center; display:none; }
+  .bell-badge.show { display:flex; }
+
+  /* ── NOTIFICATION PANEL (slide in from right) ── */
+  .notif-panel {
+    position:fixed; top:44px; right:0; width:320px; height:calc(100vh - 44px);
+    background:var(--surface); border-left:1px solid var(--border);
+    z-index:50; display:flex; flex-direction:column;
+    transform:translateX(100%); transition:transform .22s ease;
+    box-shadow:-4px 0 20px rgba(0,0,0,.08);
+  }
+  .notif-panel.open { transform:translateX(0); }
+  .notif-panel-header {
+    padding:14px 16px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+  }
+  .notif-panel-title { font-size:13px; font-weight:600; }
+  .notif-clear { font-size:11px; color:var(--accent); background:none; border:none; cursor:pointer; font-family:inherit; }
+  .notif-panel-body { overflow-y:auto; flex:1; padding:10px; display:flex; flex-direction:column; gap:8px; }
+
+  /* ── INDIVIDUAL NOTIFICATION CARD ── */
+  .notif-card {
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:12px 13px; position:relative;
+  }
+  .notif-card.urgency-now   { border-left:3px solid var(--red);   }
+  .notif-card.urgency-soon  { border-left:3px solid var(--amber); }
+  .notif-card.urgency-today { border-left:3px solid var(--accent);}
+  .notif-card.urgency-upcoming { border-left:3px solid var(--green); }
+  .notif-top { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; }
+  .notif-icon { font-size:18px; flex-shrink:0; }
+  .notif-info { flex:1; }
+  .notif-name { font-size:12px; font-weight:600; color:var(--text1); margin-bottom:2px; }
+  .notif-time-label {
+    font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; display:inline-block; margin-bottom:5px;
+  }
+  .urgency-now   .notif-time-label { background:var(--red-bg);   color:var(--red);   }
+  .urgency-soon  .notif-time-label { background:var(--amber-bg); color:var(--amber); }
+  .urgency-today .notif-time-label { background:var(--accent-bg);color:var(--accent);}
+  .urgency-upcoming .notif-time-label { background:var(--green-bg); color:var(--green); }
+  .notif-meta { font-size:11px; color:var(--text2); line-height:1.6; }
+  .notif-dismiss-btn {
+    position:absolute; top:8px; right:8px; background:none; border:none;
+    font-size:13px; color:var(--text3); cursor:pointer; padding:2px 5px;
+    border-radius:4px; line-height:1;
+  }
+  .notif-dismiss-btn:hover { background:var(--bg); color:var(--text1); }
+  .notif-empty { text-align:center; color:var(--text3); font-size:12px; padding:40px 20px; line-height:1.8; }
+
+  /* ── IN-APP POPUP ALERT (bottom-right) ── */
+  .popup-alert {
+    position:fixed; bottom:24px; right:24px; width:290px;
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.14);
+    padding:14px 16px; z-index:300;
+    transform:translateY(120%); transition:transform .25s ease;
+    display:flex; gap:12px; align-items:flex-start;
+  }
+  .popup-alert.show { transform:translateY(0); }
+  .popup-alert-icon { font-size:22px; flex-shrink:0; }
+  .popup-alert-body { flex:1; }
+  .popup-alert-title { font-size:12px; font-weight:600; margin-bottom:3px; }
+  .popup-alert-sub   { font-size:11px; color:var(--text2); line-height:1.5; }
+  .popup-alert-close { background:none; border:none; font-size:14px; color:var(--text3); cursor:pointer; flex-shrink:0; }
+
+  /* ── SUMMARY BAR ── */
+  .summary-bar {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:7px 14px; font-size:11px; color:var(--text2);
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap; flex-shrink:0;
+  }
+  .summary-bar .sep { color:var(--border2); }
+
+  /* ── CATEGORY BADGE ── */
+  .cat-badge {
+    display:inline-flex; align-items:center; gap:3px;
+    font-size:10px; font-weight:600; padding:2px 7px; border-radius:20px;
+  }
+  .cat-academics   { background:#eef2ff; color:#3730a3; }
+  .cat-clubs       { background:#fdf2f8; color:#9d174d; }
+  .cat-placements  { background:#f0fdf4; color:#166534; }
+  .cat-wellness    { background:#fff7ed; color:#9a3412; }
+  .cat-finance     { background:#fffbeb; color:#92400e; }
+  .cat-meetings    { background:#f0f9ff; color:#075985; }
+  .cat-general     { background:#f9fafb; color:#4b5563; }
+
+  /* ── PRIORITY BORDER ── */
+  .event-card.pri-urgent   { border-left:3px solid var(--red);   }
+  .event-card.pri-important{ border-left:3px solid var(--amber); }
+  .event-card.pri-optional { border-left:3px solid var(--border2);}
+
+  /* ── PRIORITY BADGE ── */
+  .pri-badge { font-size:9px; font-weight:700; padding:2px 6px; border-radius:20px; }
+  .pri-urgent    { background:var(--red-bg);   color:var(--red);   }
+  .pri-important { background:var(--amber-bg); color:var(--amber); }
+  .pri-optional  { background:var(--bg);       color:var(--text3); border:1px solid var(--border2); }
+
+  /* ── CATEGORY FILTER PILLS ── */
+  .cat-filters { padding:8px 12px; display:flex; gap:5px; flex-wrap:wrap; border-bottom:1px solid var(--border); background:var(--bg); flex-shrink:0; }
+  .cat-pill { font-size:10px; font-weight:600; padding:3px 9px; border-radius:20px; border:1px solid var(--border2); background:var(--card); color:var(--text2); cursor:pointer; font-family:inherit; transition:all .15s; }
+  .cat-pill.active { border-color:transparent; }
+
+  /* ── RECOMMENDATION BADGE ── */
+  .rec-recommended  { background:#ecfdf5; color:#065f46; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; }
+  .rec-not_for_you  { background:#f9fafb; color:#9ca3af; font-size:10px; font-weight:500; padding:2px 8px; border-radius:20px; }
+
+  /* ── INTEREST PANEL ── */
+  .interest-panel { margin:12px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .interest-panel-head { padding:10px 14px; border-bottom:1px solid var(--border); font-size:12px; font-weight:600; display:flex; align-items:center; justify-content:space-between; }
+  .interest-panel-body { padding:12px 14px; display:flex; flex-direction:column; gap:10px; }
+  .interest-row { display:flex; align-items:center; gap:8px; }
+  .interest-label { font-size:11px; color:var(--text2); width:80px; flex-shrink:0; }
+  .interest-bar-wrap { flex:1; background:var(--bg); border-radius:20px; height:6px; overflow:hidden; }
+  .interest-bar { height:6px; border-radius:20px; background:var(--accent); transition:width .4s ease; }
+  .interest-bar.negative { background:var(--red); }
+  .interest-score { font-size:10px; font-weight:600; color:var(--text3); width:24px; text-align:right; }
+  .interest-empty { font-size:11px; color:var(--text3); text-align:center; padding:16px; line-height:1.7; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><div class="logo-icon">E</div> EventLink</div>
+  <input type="text" placeholder="Search emails or events…" oninput="filterSearch(this.value)"/>
+  <div class="status-bar">
+    <div class="status-dot" id="ollama-dot"></div>
+    <span class="status-label" id="ollama-label">Ollama</span>
+  </div>
+  <!-- BELL -->
+  <div class="bell-wrap" onclick="toggleNotifPanel()">
+    <button class="bell-btn" title="Notifications">🔔</button>
+    <span class="bell-badge" id="bell-badge">0</span>
+  </div>
+  <div class="topbar-avatar">AV</div>
+</div>
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-panel-header">
+    <span class="notif-panel-title">🔔 Notifications</span>
+    <button class="notif-clear" onclick="clearAllNotifs()">Clear all</button>
+  </div>
+  <div class="notif-panel-body" id="notif-panel-body">
+    <div class="notif-empty">No upcoming events you're attending.<br>Mark events as "Will Attend" to get reminders.</div>
+  </div>
+</div>
+
+<!-- IN-APP POPUP ALERT -->
+<div class="popup-alert" id="popup-alert">
+  <span class="popup-alert-icon" id="popup-icon">📅</span>
+  <div class="popup-alert-body">
+    <div class="popup-alert-title" id="popup-title">Event Reminder</div>
+    <div class="popup-alert-sub"   id="popup-sub"></div>
+  </div>
+  <button class="popup-alert-close" onclick="closePopup()">✕</button>
+</div>
+
+<!-- SUMMARY BAR -->
+<div class="summary-bar" id="summary-bar">
+  <span id="summary-text" style="color:var(--text3)">Loading summary…</span>
+</div>
+
+<div class="layout">
+
+  <!-- ── INBOX ── -->
+  <div class="col inbox">
+    <div class="col-header">
+      <span class="col-title">Email Inbox</span>
+      <div class="inbox-actions">
+        <span class="inbox-count" id="inbox-count">0</span>
+        <button class="fetch-btn" id="fetch-btn" onclick="fetchEmails()">↓ Fetch</button>
+      </div>
+    </div>
+    <div id="inbox-list">
+      <div class="empty-state"><span class="empty-icon">📬</span>Click Fetch to load emails</div>
+    </div>
+  </div>
+
+  <!-- ── EVENTS ── -->
+  <div class="col overview">
+    <div class="col-header">
+      <span class="col-title">Events Overview</span>
+      <div class="filter-group">
+        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('attending',this)">Attending</button>
+        <button class="filter-btn" onclick="setFilter('pending',this)">Pending</button>
+      </div>
+    </div>
+    <div class="cat-filters">
+      <button class="cat-pill active" id="cp-all"         onclick="setCat('all',this)">All</button>
+      <button class="cat-pill cat-academics"               onclick="setCat('academics',this)">📚 Academics</button>
+      <button class="cat-pill cat-clubs"                   onclick="setCat('clubs',this)">🎉 Clubs</button>
+      <button class="cat-pill cat-placements"              onclick="setCat('placements',this)">💼 Placements</button>
+      <button class="cat-pill cat-wellness"                onclick="setCat('wellness',this)">🏃 Wellness</button>
+      <button class="cat-pill cat-finance"                 onclick="setCat('finance',this)">💰 Finance</button>
+      <button class="cat-pill cat-meetings"                onclick="setCat('meetings',this)">📋 Meetings</button>
+    </div>
+    <div class="events-list" id="events-list">
+      <div class="empty-state"><span class="empty-icon">📅</span>No events yet.<br>Fetch emails to extract events.</div>
+    </div>
+  </div>
+
+  <!-- ── DETAIL ── -->
+  <div class="col detail">
+    <div class="col-header"><span class="col-title">Event Detail</span></div>
+    <div class="detail-empty" id="detail-empty">
+      <span style="font-size:28px">📅</span>
+      <span>Select an event</span>
+    </div>
+    <div id="detail-panel" style="display:none"></div>
+
+    <!-- Interest Profile (always visible in detail column) -->
+    <div class="interest-panel" id="interest-panel">
+      <div class="interest-panel-head">
+        <span>✨ Your Interests</span>
+        <span style="font-size:10px;color:var(--text3)" id="interest-data-count"></span>
+      </div>
+      <div class="interest-panel-body" id="interest-panel-body">
+        <div class="interest-empty">Mark events as "Will Attend" or "Cannot Attend" to build your interest profile.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- EMAIL MODAL -->
+<div class="overlay" id="overlay" onclick="closeModalOut(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="m-title">Email</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-meta" id="m-meta"></div>
+    <div class="modal-body" id="m-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+let allEmails  = [];
+let allEvents  = [];
+let activeFilter = 'all';
+let activeCat    = 'all';
+let selectedEventId = null;
+const AVATAR_CLASSES = ['av-a','av-b','av-c','av-d','av-e'];
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', () => {
+  checkStatus();
+  loadEmails();
+  loadEvents();
+  loadSummary();
+  loadInterests();
+  checkNotifications();
+  setInterval(checkStatus,        15000);
+  setInterval(loadEvents,          8000);
+  setInterval(loadSummary,        30000);
+  setInterval(loadInterests,      20000);
+  setInterval(checkNotifications,  60000);
+});
+
+// ── STATUS CHECK ──
+async function checkStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const s = await r.json();
+    const dot   = document.getElementById('ollama-dot');
+    const label = document.getElementById('ollama-label');
+    dot.className   = 'status-dot ' + (s.ollama_running ? 'ok' : 'err');
+    label.textContent = s.ollama_running ? 'Ollama ✓' : 'Ollama offline';
+    if (s.pending_processing > 0) label.textContent += ` · processing ${s.pending_processing}…`;
+  } catch(e) {}
+}
+
+// ── FETCH EMAILS FROM SERVER ──
+async function fetchEmails() {
+  const btn = document.getElementById('fetch-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const r = await fetch('/api/fetch-emails', { method:'POST' });
+    const d = await r.json();
+    if (d.error) { showToast('Error: ' + d.error); return; }
+    showToast(`Fetched ${d.fetched} emails · ${d.new} new · AI extracting events…`);
+    await loadEmails();
+    setTimeout(() => { loadEvents(); loadSummary(); }, 4000);
+  } catch(e) {
+    showToast('Could not reach server');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↓ Fetch';
+  }
+}
+
+// ── LOAD EMAILS ──
+async function loadEmails() {
+  try {
+    const r = await fetch('/api/emails');
+    allEmails = await r.json();
+    renderInbox(allEmails);
+  } catch(e) {}
+}
+
+// ── LOAD EVENTS ──
+async function loadEvents() {
+  try {
+    const r = await fetch(`/api/events?filter=${activeFilter}&category=${activeCat}`);
+    allEvents = await r.json();
+    renderEvents(allEvents);
+  } catch(e) {}
+}
+
+// ── LOAD SUMMARY ──
+async function loadSummary() {
+  try {
+    const r = await fetch('/api/summary');
+    const s = await r.json();
+    document.getElementById('summary-text').textContent = s.sentence;
+  } catch(e) {}
+}
+
+// ── LOAD INTERESTS ──
+async function loadInterests() {
+  try {
+    const r = await fetch('/api/interests');
+    const d = await r.json();
+    renderInterestPanel(d);
+  } catch(e) {}
+}
+
+function renderInterestPanel(d) {
+  const body      = document.getElementById('interest-panel-body');
+  const countEl   = document.getElementById('interest-data-count');
+  countEl.textContent = d.history.length + ' actions logged';
+
+  if (!d.has_data) {
+    body.innerHTML = '<div class="interest-empty">Mark events as "Will Attend" or "Cannot Attend" to build your interest profile.</div>';
+    return;
+  }
+
+  const cats = Object.entries(d.interests).sort((a,b) => b[1].score - a[1].score);
+  const maxScore = Math.max(...cats.map(([,v]) => Math.abs(v.score)), 1);
+  const catEmoji = {academics:'📚',clubs:'🎉',placements:'💼',wellness:'🏃',finance:'💰',meetings:'📋',general:'📌'};
+
+  body.innerHTML = cats.map(([cat, info]) => {
+    const pct      = Math.round((Math.abs(info.score) / maxScore) * 100);
+    const negative = info.score < 0;
+    const emoji    = catEmoji[cat] || '📌';
+    return `
+      <div class="interest-row">
+        <span class="interest-label">${emoji} ${cat}</span>
+        <div class="interest-bar-wrap">
+          <div class="interest-bar ${negative ? 'negative' : ''}" style="width:${pct}%"></div>
+        </div>
+        <span class="interest-score" style="color:${negative ? 'var(--red)' : 'var(--accent)'}">${info.score > 0 ? '+' : ''}${info.score}</span>
+      </div>`;
+  }).join('');
+}
+
+// ── SET CATEGORY FILTER ──
+function setCat(cat, btn) {
+  activeCat = cat;
+  document.querySelectorAll('.cat-pill').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = '';
+    b.style.color = '';
+    b.style.borderColor = '';
+  });
+  btn.classList.add('active');
+  btn.style.background   = 'var(--accent)';
+  btn.style.color        = '#fff';
+  btn.style.borderColor  = 'var(--accent)';
+  loadEvents();
+}
+
+// ── RENDER INBOX ──
+function renderInbox(emails) {
+  document.getElementById('inbox-count').textContent = emails.length;
+  const list = document.getElementById('inbox-list');
+  if (!emails.length) {
+    list.innerHTML = '<div class="empty-state"><span class="empty-icon">📬</span>No emails cached yet</div>';
+    return;
+  }
+  list.innerHTML = emails.map((em, i) => {
+    const initials = (em.sender || '?').replace(/<.*>/, '').trim().split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+    const avClass  = AVATAR_CLASSES[i % AVATAR_CLASSES.length];
+    const timeStr  = formatDate(em.date || em.fetched_at);
+    let tag = '';
+    if (!em.processed) {
+      tag = '<span class="email-tag tag-pending">⏳ Processing…</span>';
+    } else if (em.event_count > 0) {
+      tag = `<span class="email-tag tag-events">🗓 ${em.event_count} Event${em.event_count>1?'s':''} Found</span>`;
+    } else {
+      tag = '<span class="email-tag tag-none">No events found</span>';
+    }
+    return `
+      <div class="email-item" id="ei-${i}" onclick="selectEmail(${i})">
+        <div class="email-meta">
+          <div class="email-avatar ${avClass}">${initials}</div>
+          <span class="email-sender">${escHtml(senderName(em.sender))}</span>
+          <span class="email-time">${timeStr}</span>
+        </div>
+        <div class="email-subject">${escHtml(em.subject || '(no subject)')}</div>
+        ${tag}
+        <button class="view-btn" onclick="openModal(event,${i})">View Email</button>
+      </div>`;
+  }).join('');
+}
+
+// ── RENDER EVENTS ──
+function renderEvents(events) {
+  const list = document.getElementById('events-list');
+  if (!events.length) {
+    list.innerHTML = '<div class="empty-state"><span class="empty-icon">📅</span>No events found yet.<br>Fetch emails to extract events.</div>';
+    return;
+  }
+  list.innerHTML = events.map(ev => {
+    const resp     = ev.user_response || 'pending';
+    const priority = ev.priority || 'optional';
+    const category = ev.category || 'general';
+
+    let badge = '';
+    if (resp === 'pending')  badge = '<span class="badge-new">Awaiting Response</span>';
+    if (resp === 'attend')   badge = '<span class="badge-new badge-attend">✓ Attending</span>';
+    if (resp === 'dismiss')  badge = '<span class="badge-new badge-dismiss">✕ Not Attending</span>';
+
+    const icon    = eventIcon(ev.event_name);
+    const catEmoji = {academics:'📚',clubs:'🎉',placements:'💼',wellness:'🏃',finance:'💰',meetings:'📋',general:'📌'}[category] || '📌';
+    const catHtml  = `<span class="cat-badge cat-${category}">${catEmoji} ${category}</span>`;
+    const priLabel = `<span class="pri-badge pri-${priority}">${priority}</span>`;
+    const rec      = ev.recommendation || 'neutral';
+    const recHtml  = rec === 'recommended'
+      ? `<span class="rec-recommended">✨ Recommended</span>`
+      : rec === 'not_for_you'
+      ? `<span class="rec-not_for_you">Not your type</span>`
+      : '';
+
+    return `
+      <div class="event-card pri-${priority} ${selectedEventId===ev.id?'selected':''}" id="ec-${ev.id}" onclick="selectEvent(${ev.id})">
+        <div class="event-card-header">
+          <span class="event-icon">${icon}</span>
+          <span class="event-name">${escHtml(ev.event_name||'Unnamed Event')}</span>
+          ${badge}
+        </div>
+        <div style="display:flex;gap:5px;margin-bottom:7px;flex-wrap:wrap">${catHtml} ${priLabel} ${recHtml}</div>
+        <div class="event-meta">
+          ${ev.date  ? `<div class="event-meta-row"><span class="meta-label">Date</span>${escHtml(ev.date)}</div>` : ''}
+          ${ev.time  ? `<div class="event-meta-row"><span class="meta-label">Time</span>${escHtml(ev.time)}</div>` : ''}
+          ${ev.venue ? `<div class="event-meta-row"><span class="meta-label">Where</span>${escHtml(ev.venue)}</div>` : ''}
+        </div>
+        <div class="event-actions">
+          <button class="btn btn-edit">✏ Edit</button>
+          <button class="btn btn-attend ${resp==='attend'?'on':''}" id="att-${ev.id}"
+            onclick="respond(event,${ev.id},'attend')">✓ Will Attend</button>
+          <button class="btn btn-dismiss ${resp==='dismiss'?'on':''}" id="dis-${ev.id}"
+            onclick="respond(event,${ev.id},'dismiss')">✕ Cannot</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── SELECT EMAIL ──
+function selectEmail(idx) {
+  document.querySelectorAll('.email-item').forEach((el,i) => el.classList.toggle('active', i===idx));
+}
+
+// ── SELECT EVENT + show detail ──
+function selectEvent(id) {
+  selectedEventId = id;
+  document.querySelectorAll('.event-card').forEach(el => el.classList.remove('selected'));
+  const card = document.getElementById('ec-' + id);
+  if (card) card.classList.add('selected');
+
+  const ev = allEvents.find(e => e.id === id);
+  if (!ev) return;
+
+  document.getElementById('detail-empty').style.display = 'none';
+  const panel = document.getElementById('detail-panel');
+  panel.style.display = 'block';
+  const icon = eventIcon(ev.event_name);
+  const resp     = ev.user_response || 'pending';
+  const priority = ev.priority || 'normal';
+  const category = ev.category || 'general';
+  panel.innerHTML = `
+    <div class="detail-card">
+      <div class="priority-bar pri-${priority}" style="border-radius:0"></div>
+      <div class="detail-head">
+        <span style="font-size:18px">${icon}</span>
+        <span class="detail-head-name">${escHtml((ev.event_name||'Event').toUpperCase())}</span>
+      </div>
+      <div class="detail-fields">
+        <div class="detail-field">
+          <label>Priority</label>
+          <span class="pri-label ${priority}">${priority.charAt(0).toUpperCase()+priority.slice(1)}</span>
+        </div>
+        <div class="detail-field">
+          <label>Category</label>
+          <span class="cat-badge cat-${category}">${category}</span>
+        </div>
+        ${ev.date        ? `<div class="detail-field"><label>Date</label><span>${escHtml(ev.date)}</span></div>` : ''}
+        ${ev.time        ? `<div class="detail-field"><label>Time</label><span>${escHtml(ev.time)}</span></div>` : ''}
+        ${ev.venue       ? `<div class="detail-field"><label>Where</label><span>${escHtml(ev.venue)}</span></div>` : ''}
+        ${ev.deadline    ? `<div class="detail-field"><label>Deadline</label><span>${escHtml(ev.deadline)}</span></div>` : ''}
+        ${ev.description ? `<div class="detail-field"><label>Summary</label><span>${escHtml(ev.description)}</span></div>` : ''}
+        <div class="detail-field"><label>From Email</label><span>${escHtml(ev.email_subject||'')}</span></div>
+      </div>
+      <div class="detail-actions">
+        <div class="detail-row">
+          <button class="btn btn-edit" style="flex:1">✏ Edit</button>
+          <button class="btn btn-dismiss ${resp==='dismiss'?'on':''}" style="flex:1"
+            onclick="respond(event,${ev.id},'dismiss')">✕ Dismiss</button>
+        </div>
+        ${ev.calendar_link
+          ? `<button class="btn-cal" style="background:var(--green)"
+               onclick="window.open('${ev.calendar_link}','_blank')">✓ Open in Google Calendar</button>`
+          : `<button class="btn-cal" id="cal-btn-${ev.id}"
+               onclick="addToCalendar(${ev.id})">＋ Add to Calendar</button>`
+        }
+      </div>
+    </div>`;
+}
+
+// ── RESPOND ──
+async function respond(e, id, action) {
+  e.stopPropagation();
+  try {
+    await fetch(`/api/events/${id}/response`, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ response: action })
+    });
+    showToast(action === 'attend' ? 'Marked as attending ✓' : 'Event dismissed');
+    await loadEvents();
+    await loadInterests();
+    if (selectedEventId === id) selectEvent(id);
+  } catch(err) {
+    showToast('Could not save response');
+  }
+}
+
+// ── ADD TO CALENDAR — calls real Flask → Google Calendar API ──
+async function addToCalendar(id) {
+  const ev  = allEvents.find(e => e.id === id);
+  if (!ev) return;
+  const btn = document.getElementById('cal-btn-' + id);
+
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Adding…'; }
+
+  try {
+    const r = await fetch(`/api/events/${id}/add-to-calendar`, { method: 'POST' });
+    const d = await r.json();
+
+    if (d.ok) {
+      showToast(`✓ "${ev.event_name}" added to Google Calendar!`);
+      if (btn) {
+        btn.textContent  = '✓ Added to Calendar';
+        btn.style.background = 'var(--green)';
+        btn.disabled = false;
+      }
+      // If Google returned a calendar link, open it
+      if (d.link) {
+        setTimeout(() => {
+          if (confirm('Open event in Google Calendar?')) window.open(d.link, '_blank');
+        }, 600);
+      }
+      await loadEvents();
+    } else {
+      showToast('Error: ' + (d.error || 'Could not add to calendar'));
+      if (btn) { btn.disabled = false; btn.textContent = '＋ Add to Calendar'; }
+    }
+  } catch(err) {
+    showToast('Server error — is Flask running?');
+    if (btn) { btn.disabled = false; btn.textContent = '＋ Add to Calendar'; }
+  }
+}
+
+// ── OPEN EMAIL MODAL ──
+function openModal(e, idx) {
+  e.stopPropagation();
+  const em = allEmails[idx];
+  if (!em) return;
+  document.getElementById('m-title').textContent = 'Email: ' + (em.subject||'').substring(0,40);
+  document.getElementById('m-meta').innerHTML = `
+    <div class="modal-meta-row"><b>From:</b> ${escHtml(em.sender||'')}</div>
+    <div class="modal-meta-row"><b>Date:</b> ${escHtml(em.date||em.fetched_at||'')}</div>
+    <div class="modal-meta-row"><b>Subject:</b> ${escHtml(em.subject||'')}</div>`;
+  document.getElementById('m-body').textContent = em.body || '(no body)';
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+function closeModalOut(e) { if(e.target===document.getElementById('overlay')) closeModal(); }
+
+// ── FILTER ──
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadEvents();
+}
+
+// ── SEARCH ──
+function filterSearch(q) {
+  q = q.toLowerCase();
+  if (!q) { renderEvents(allEvents); renderInbox(allEmails); return; }
+  renderEvents(allEvents.filter(e =>
+    (e.event_name||'').toLowerCase().includes(q) ||
+    (e.venue||'').toLowerCase().includes(q) ||
+    (e.date||'').toLowerCase().includes(q)
+  ));
+  renderInbox(allEmails.filter(e =>
+    (e.subject||'').toLowerCase().includes(q) ||
+    (e.sender||'').toLowerCase().includes(q)
+  ));
+}
+
+// ── HELPERS ──
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function senderName(s) {
+  if (!s) return '?';
+  const m = s.match(/^([^<]+)</);
+  return m ? m[1].trim() : s.split('@')[0];
+}
+function formatDate(d) {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    const now = new Date();
+    const diff = now - dt;
+    if (diff < 86400000) return dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    if (diff < 604800000) return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+    return dt.toLocaleDateString([], {month:'short', day:'numeric'});
+  } catch(e) { return d.substring(0,10); }
+}
+function eventIcon(name) {
+  if (!name) return '📅';
+  const n = name.toLowerCase();
+  if (n.includes('dinner') || n.includes('lunch') || n.includes('food')) return '🍽';
+  if (n.includes('meeting') || n.includes('sync') || n.includes('kickoff')) return '📋';
+  if (n.includes('workshop') || n.includes('seminar') || n.includes('webinar')) return '🎓';
+  if (n.includes('fest') || n.includes('festival') || n.includes('cultural')) return '🎉';
+  if (n.includes('deadline') || n.includes('submission')) return '⏰';
+  if (n.includes('sport') || n.includes('game') || n.includes('match')) return '🏆';
+  return '📅';
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════════
+//  NOTIFICATION SYSTEM
+// ══════════════════════════════════════════════
+
+let dismissedNotifs  = new Set(JSON.parse(localStorage.getItem('dismissedNotifs') || '[]'));
+let shownPopups      = new Set();
+let notifPanelOpen   = false;
+let lastPopupEventId = null;
+
+// Called every 60 seconds + on load
+async function checkNotifications() {
+  try {
+    const r = await fetch('/api/notifications');
+    const notifs = await r.json();
+    renderNotifPanel(notifs);
+    checkForPopup(notifs);
+  } catch(e) {}
+}
+
+// ── RENDER NOTIFICATION PANEL ──
+function renderNotifPanel(notifs) {
+  // Filter out user-dismissed ones
+  const active = notifs.filter(n => !dismissedNotifs.has(String(n.id)));
+
+  // Update bell badge
+  const badge = document.getElementById('bell-badge');
+  const urgent = active.filter(n => n.urgency === 'now' || n.urgency === 'soon').length;
+  if (active.length > 0) {
+    badge.classList.add('show');
+    badge.textContent = active.length > 9 ? '9+' : active.length;
+    // Pulse bell for urgent ones
+    if (urgent > 0) badge.style.background = 'var(--red)';
+    else            badge.style.background = 'var(--accent)';
+  } else {
+    badge.classList.remove('show');
+  }
+
+  const body = document.getElementById('notif-panel-body');
+  if (!active.length) {
+    body.innerHTML = '<div class="notif-empty">No upcoming events you\'re attending.<br>Mark events as "Will Attend" to get reminders here.</div>';
+    return;
+  }
+
+  body.innerHTML = active.map(n => {
+    const icon = eventIcon(n.event_name);
+    return `
+      <div class="notif-card urgency-${n.urgency}" id="nc-${n.id}">
+        <button class="notif-dismiss-btn" onclick="dismissNotif(${n.id})" title="Dismiss">✕</button>
+        <div class="notif-top">
+          <span class="notif-icon">${icon}</span>
+          <div class="notif-info">
+            <div class="notif-name">${escHtml(n.event_name)}</div>
+            <span class="notif-time-label">${escHtml(n.time_label)}</span>
+            <div class="notif-meta">
+              ${n.date  ? `📅 ${escHtml(n.date)}<br>` : ''}
+              ${n.time  ? `🕐 ${escHtml(n.time)}<br>` : ''}
+              ${n.venue ? `📍 ${escHtml(n.venue)}`    : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── POPUP ALERT for "now" or "soon" events ──
+function checkForPopup(notifs) {
+  const urgent = notifs.find(n =>
+    (n.urgency === 'now' || n.urgency === 'soon') &&
+    !dismissedNotifs.has(String(n.id)) &&
+    !shownPopups.has(n.id)
+  );
+  if (!urgent) return;
+
+  shownPopups.add(urgent.id);
+  lastPopupEventId = urgent.id;
+
+  document.getElementById('popup-icon').textContent  = eventIcon(urgent.event_name);
+  document.getElementById('popup-title').textContent = urgent.event_name;
+  document.getElementById('popup-sub').textContent   =
+    urgent.time_label +
+    (urgent.venue ? ' · ' + urgent.venue : '') +
+    (urgent.time  ? ' at ' + urgent.time : '');
+
+  const popup = document.getElementById('popup-alert');
+  popup.classList.add('show');
+
+  // Auto-dismiss after 12 seconds
+  setTimeout(() => popup.classList.remove('show'), 12000);
+}
+
+function closePopup() {
+  document.getElementById('popup-alert').classList.remove('show');
+  if (lastPopupEventId) shownPopups.add(lastPopupEventId);
+}
+
+// ── TOGGLE PANEL ──
+function toggleNotifPanel() {
+  notifPanelOpen = !notifPanelOpen;
+  document.getElementById('notif-panel').classList.toggle('open', notifPanelOpen);
+}
+
+// ── DISMISS ONE NOTIFICATION ──
+function dismissNotif(id) {
+  dismissedNotifs.add(String(id));
+  localStorage.setItem('dismissedNotifs', JSON.stringify([...dismissedNotifs]));
+  const card = document.getElementById('nc-' + id);
+  if (card) card.style.opacity = '0', setTimeout(() => card.remove(), 200);
+  checkNotifications();
+}
+
+// ── CLEAR ALL ──
+function clearAllNotifs() {
+  const body = document.getElementById('notif-panel-body');
+  body.querySelectorAll('.notif-card').forEach(c => {
+    const id = c.id.replace('nc-', '');
+    dismissedNotifs.add(id);
+  });
+  localStorage.setItem('dismissedNotifs', JSON.stringify([...dismissedNotifs]));
+  checkNotifications();
+}
+
+// Close panel when clicking outside
+document.addEventListener('click', function(e) {
+  const panel = document.getElementById('notif-panel');
+  const bell  = document.querySelector('.bell-wrap');
+  if (notifPanelOpen && !panel.contains(e.target) && !bell.contains(e.target)) {
+    notifPanelOpen = false;
+    panel.classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>
