@@ -1,0 +1,13 @@
+{
+  "name": "emailto",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@netlify/database": "^1.0.0",
+    "@netlify/functions": "^4.2.5",
+    "imapflow": "^1.0.191",
+    "mailparser": "^3.9.0"
+  },
+  "devDependencies": {}
+}
